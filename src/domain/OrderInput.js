@@ -72,20 +72,6 @@ class OrderInput extends Order {
     this.paymentMethod = paymentMethod;
     this.installments = installments;
   }
-
-  getTotalItems() {
-    return this.items.reduce((total, item) => total + item.quantity, 0);
-  }
-
-  getSubtotal() {
-    return this.items.reduce((total, item) => total + item.getSubtotal(), 0);
-  }
-
-  getTotalWeight() {
-    return this.items.reduce((total, item) => {
-      return total + item.product.weight * item.quantity;
-    }, 0);
-  }
 }
 
 module.exports = OrderInput;

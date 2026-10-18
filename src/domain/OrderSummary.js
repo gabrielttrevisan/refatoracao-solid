@@ -1,20 +1,17 @@
 const Order = require("./Order");
+const OrderPricingItem = require("./pricing-item/OrderPricingItem");
 
 /**
  * @typedef {Object} OrderSummaryInput
- * @prop {number} discount
- * @prop {number} subtotal
- * @prop {number} total
- * @prop {import("./OrderInput").OrderInput}
- * @prop {number} freight
- * @prop {number} paymentFee
+ * @prop {import("./OrderInput").OrderInput} order
+ * @prop {import("./OrderPricing").OrderPricing} pricing
  */
 
 class OrderSummary extends Order {
   /**
    * @param {OrderSummaryInput} order
    */
-  constructor({ order, discount, subtotal, total, freight, paymentFee }) {
+  constructor({ order, pricing }) {
     super({
       status: order.status,
       createdAt: order.createdAt,
@@ -31,11 +28,11 @@ class OrderSummary extends Order {
     this.customerEmail = order.customer.email;
     this.city = order.customer.address.city;
     this.state = order.customer.address.state;
-    this.subtotal = subtotal;
-    this.discount = Number(discount.toFixed(2));
-    this.freight = Number(freight.toFixed(2));
-    this.paymentFee = Number(paymentFee.toFixed(2));
-    this.total = total;
+    this.discount = pricing.amount(OrderPricingItem.TYPE_DISCOUNT);
+    this.subtotal = pricing.subtotal;
+    this.total = pricing.total;
+    this.freight = pricing.amount(OrderPricingItem.TYPE_FREIGHT);
+    this.paymentFee = pricing.amount(OrderPricingItem.TYPE_FEE);
     this.paymentMethod = order.paymentMethod;
   }
 }

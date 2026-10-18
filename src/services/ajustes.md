@@ -4,3 +4,6 @@
 
 2. Separar operações de print para pedidos.
    classe Order separada em Order, OrderInput e OrderSummary.
+
+3. Discontos, frete e taxas separados em classes de precificação.
+   Classe de precificação de pedido
