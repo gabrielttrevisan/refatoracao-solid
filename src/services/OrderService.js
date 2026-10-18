@@ -2,8 +2,12 @@ const ProductRepository = require("../repositories/ProductRepository");
 const OrderRepository = require("../repositories/OrderRepository");
 const NotificationService = require("./NotificationService");
 const Logger = require("../utils/Logger");
+const Order = require("../domain/Order");
 
 class OrderService {
+  /**
+   * @param {OrderServiceInit} param0
+   */
   constructor() {
     this.productRepository = new ProductRepository();
     this.orderRepository = new OrderRepository();
@@ -11,30 +15,12 @@ class OrderService {
     this.logger = new Logger();
   }
 
-  process(order) {
+  process(input) {
+    const order = new Order(input);
+
     this.logger.info(`Iniciando processamento do pedido ${order.id}.`);
 
-    if (!order.customer) {
-      throw new Error("Cliente obrigatorio.");
-    }
-
-    if (!order.customer.email || !order.customer.email.includes("@")) {
-      throw new Error("E-mail do cliente invalido.");
-    }
-
-    if (!order.items || order.items.length === 0) {
-      throw new Error("Pedido sem itens.");
-    }
-
     for (const item of order.items) {
-      if (!item.product) {
-        throw new Error("Item sem produto.");
-      }
-
-      if (item.quantity <= 0) {
-        throw new Error("Quantidade invalida.");
-      }
-
       const product = this.productRepository.findById(item.product.id);
 
       if (!product) {
@@ -117,7 +103,9 @@ class OrderService {
       throw new Error("Forma de pagamento invalida.");
     }
 
-    const total = Number((subtotal - discount + freight + paymentFee).toFixed(2));
+    const total = Number(
+      (subtotal - discount + freight + paymentFee).toFixed(2),
+    );
 
     if (total <= 0) {
       throw new Error("Total do pedido invalido.");
@@ -127,7 +115,8 @@ class OrderService {
       this.productRepository.updateStock(item.product.id, item.quantity);
     }
 
-    order.status = paymentStatus === "approved" ? "confirmed" : "waiting_payment";
+    order.status =
+      paymentStatus === "approved" ? "confirmed" : "waiting_payment";
 
     const orderSummary = {
       id: order.id,
@@ -139,7 +128,7 @@ class OrderService {
         productId: item.product.id,
         name: item.product.name,
         quantity: item.quantity,
-        subtotal: item.getSubtotal()
+        subtotal: item.getSubtotal(),
       })),
       subtotal,
       discount: Number(discount.toFixed(2)),
@@ -148,20 +137,26 @@ class OrderService {
       total,
       paymentMethod: order.paymentMethod,
       status: order.status,
-      createdAt: order.createdAt
+      createdAt: order.createdAt,
     };
 
     this.orderRepository.save(orderSummary);
 
     if (order.status === "confirmed") {
-      this.notificationService.sendOrderConfirmation(order.customer, order.id, total);
+      this.notificationService.sendOrderConfirmation(
+        order.customer,
+        order.id,
+        total,
+      );
     } else {
       this.logger.warn(`Pedido ${order.id} aguardando pagamento.`);
     }
 
     console.log("Resumo do pedido");
     console.log(`Cliente: ${order.customer.name}`);
-    console.log(`Cidade: ${order.customer.address.city}/${order.customer.address.state}`);
+    console.log(
+      `Cidade: ${order.customer.address.city}/${order.customer.address.state}`,
+    );
     console.log(`Itens: ${order.getTotalItems()}`);
     console.log(`Subtotal: R$ ${subtotal.toFixed(2)}`);
     console.log(`Desconto: R$ ${discount.toFixed(2)}`);
