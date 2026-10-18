@@ -4,9 +4,6 @@ const Order = require("./domain/OrderInput");
 const OrderItem = require("./domain/OrderItem");
 const OrderService = require("./services/OrderService");
 const ProductRepository = require("./repositories/ProductRepository");
-const JsonPrintOrder = require("./services/print/JsonPrintOrder");
-const ConsolePrintOrder = require("./services/print/ConsolePrintOrder");
-
 const productRepository = new ProductRepository();
 
 const customer = new Customer({
@@ -41,7 +38,5 @@ const order = new Order({
 });
 
 const service = new OrderService();
-const result = service.process(order);
 
-ConsolePrintOrder.print(result);
-JsonPrintOrder.print(result);
+void service.process(order);

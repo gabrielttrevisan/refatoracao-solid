@@ -10,35 +10,35 @@ const CouponCodeDiscountPricingItem = require("../domain/pricing-item/CouponCode
 const HighTicketDiscountPricingItem = require("../domain/pricing-item/HighTicketDiscountPricingItem");
 const FreightPricingItem = require("../domain/pricing-item/FreightPricingItem");
 const PaymentMethodPricingItem = require("../domain/pricing-item/PaymentMethodPricingItem");
-const OrderPricingItem = require("../domain/pricing-item/OrderPricingItem");
+const JsonPrintOrder = require("../utils/print/JsonPrintOrder");
+const ConsolePrintOrder = require("../utils/print/ConsolePrintOrder");
 
 class OrderService {
   #pricing;
+  #outputHandlers;
+  #logger;
 
   /**
    * @param {import("../../global").OrderServiceInit} param0
    */
   constructor({
-    orderPricing = new OrderPricing([
-      new OrderTypeDiscountPricingItem(),
-      new CouponCodeDiscountPricingItem(),
-      new HighTicketDiscountPricingItem(),
-      new FreightPricingItem(),
-      new PaymentMethodPricingItem(),
-    ]),
+    orderPricing = OrderService.DEFAULT_ORDER_PRICING,
+    outputHandler = OrderService.DEFAULT_HANDLERS,
+    logger = OrderService.DEFAULT_LOGGER,
   } = {}) {
     this.productRepository = new ProductRepository();
     this.orderRepository = new OrderRepository();
     this.notificationService = new NotificationService();
-    this.logger = new Logger();
+    this.#logger = logger;
 
     this.#pricing = orderPricing;
+    this.#outputHandlers = outputHandler;
   }
 
   process(input) {
     const order = new OrderInput(input);
 
-    this.logger.info(`Iniciando processamento do pedido ${order.id}.`);
+    this.#logger.info(`Iniciando processamento do pedido ${order.id}.`);
 
     for (const item of order.items) {
       const product = this.productRepository.findById(item.product.id);
@@ -74,8 +74,10 @@ class OrderService {
         this.#pricing.total,
       );
     } else {
-      this.logger.warn(`Pedido ${order.id} aguardando pagamento.`);
+      this.#logger.warn(`Pedido ${order.id} aguardando pagamento.`);
     }
+
+    this.#outputHandlers.forEach((handler) => handler.handle(orderSummary));
 
     return orderSummary;
   }
@@ -94,6 +96,24 @@ class OrderService {
     }
 
     return paymentStatus;
+  }
+
+  static get DEFAULT_ORDER_PRICING() {
+    return new OrderPricing([
+      new OrderTypeDiscountPricingItem(),
+      new CouponCodeDiscountPricingItem(),
+      new HighTicketDiscountPricingItem(),
+      new FreightPricingItem(),
+      new PaymentMethodPricingItem(),
+    ]);
+  }
+
+  static get DEFAULT_HANDLERS() {
+    return [new ConsolePrintOrder(), new JsonPrintOrder()];
+  }
+
+  static get DEFAULT_LOGGER() {
+    return new Logger();
   }
 }
 

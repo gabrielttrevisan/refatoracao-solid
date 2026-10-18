@@ -1,4 +1,5 @@
 import OrderInput from "./src/domain/OrderInput";
+import OrderSummary from "./src/domain/OrderSummary";
 
 export interface IAssertion<T> {
   assert(value: unknown): T;
@@ -19,6 +20,18 @@ type IOrderPricing = {
   calc(order: OrderInput): void;
 };
 
+interface IOutputHandler {
+  handle(orderSummary: OrderSummary): void;
+}
+
+interface ILogger {
+  info(message: string): void;
+  warn(message: string): void;
+  error(message: string): void;
+}
+
 export type OrderServiceInit = {
   orderPricing?: IOrderPricing;
+  outputHandler?: IOutputHandler[];
+  logger?: ILogger;
 };

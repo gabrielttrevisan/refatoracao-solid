@@ -1,3 +1,4 @@
+/** @implements {import("../../global").ILogger} */
 class Logger {
   info(message) {
     console.log(`[INFO] ${message}`);
