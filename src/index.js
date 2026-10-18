@@ -1,9 +1,11 @@
 const Address = require("./domain/Address");
 const Customer = require("./domain/Customer");
-const Order = require("./domain/Order");
+const Order = require("./domain/OrderInput");
 const OrderItem = require("./domain/OrderItem");
 const OrderService = require("./services/OrderService");
 const ProductRepository = require("./repositories/ProductRepository");
+const JsonPrintOrder = require("./services/print/JsonPrintOrder");
+const ConsolePrintOrder = require("./services/print/ConsolePrintOrder");
 
 const productRepository = new ProductRepository();
 
@@ -41,4 +43,5 @@ const order = new Order({
 const service = new OrderService();
 const result = service.process(order);
 
-console.log(JSON.stringify(result, null, 2));
+ConsolePrintOrder.print(result);
+JsonPrintOrder.print(result);

@@ -2,7 +2,8 @@ const ProductRepository = require("../repositories/ProductRepository");
 const OrderRepository = require("../repositories/OrderRepository");
 const NotificationService = require("./NotificationService");
 const Logger = require("../utils/Logger");
-const Order = require("../domain/Order");
+const Order = require("../domain/OrderInput");
+const OrderSummary = require("../domain/OrderSummary");
 
 class OrderService {
   /**
@@ -118,27 +119,14 @@ class OrderService {
     order.status =
       paymentStatus === "approved" ? "confirmed" : "waiting_payment";
 
-    const orderSummary = {
-      id: order.id,
-      customerName: order.customer.name,
-      customerEmail: order.customer.email,
-      city: order.customer.address.city,
-      state: order.customer.address.state,
-      items: order.items.map((item) => ({
-        productId: item.product.id,
-        name: item.product.name,
-        quantity: item.quantity,
-        subtotal: item.getSubtotal(),
-      })),
+    const orderSummary = new OrderSummary({
+      order,
+      discount,
       subtotal,
-      discount: Number(discount.toFixed(2)),
-      freight: Number(freight.toFixed(2)),
-      paymentFee: Number(paymentFee.toFixed(2)),
       total,
-      paymentMethod: order.paymentMethod,
-      status: order.status,
-      createdAt: order.createdAt,
-    };
+      freight,
+      paymentFee,
+    });
 
     this.orderRepository.save(orderSummary);
 
@@ -151,18 +139,6 @@ class OrderService {
     } else {
       this.logger.warn(`Pedido ${order.id} aguardando pagamento.`);
     }
-
-    console.log("Resumo do pedido");
-    console.log(`Cliente: ${order.customer.name}`);
-    console.log(
-      `Cidade: ${order.customer.address.city}/${order.customer.address.state}`,
-    );
-    console.log(`Itens: ${order.getTotalItems()}`);
-    console.log(`Subtotal: R$ ${subtotal.toFixed(2)}`);
-    console.log(`Desconto: R$ ${discount.toFixed(2)}`);
-    console.log(`Frete: R$ ${freight.toFixed(2)}`);
-    console.log(`Taxas: R$ ${paymentFee.toFixed(2)}`);
-    console.log(`Total: R$ ${total.toFixed(2)}`);
 
     return orderSummary;
   }
