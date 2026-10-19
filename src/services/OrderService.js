@@ -17,6 +17,9 @@ class OrderService {
   #pricing;
   #outputHandlers;
   #logger;
+  #productRepository;
+  #orderRepository;
+  #notificationService;
 
   /**
    * @param {import("../../global").OrderServiceInit} param0
@@ -24,11 +27,14 @@ class OrderService {
   constructor({
     orderPricing = OrderService.DEFAULT_ORDER_PRICING,
     outputHandler = OrderService.DEFAULT_HANDLERS,
-    logger = OrderService.DEFAULT_LOGGER,
+    logger = new Logger(),
+    productRepository = new ProductRepository(),
+    orderRepository = new OrderRepository(),
+    notificationService = new NotificationService(),
   } = {}) {
-    this.productRepository = new ProductRepository();
-    this.orderRepository = new OrderRepository();
-    this.notificationService = new NotificationService();
+    this.#productRepository = productRepository;
+    this.#orderRepository = orderRepository;
+    this.#notificationService = notificationService;
     this.#logger = logger;
 
     this.#pricing = orderPricing;
@@ -41,7 +47,7 @@ class OrderService {
     this.#logger.info(`Iniciando processamento do pedido ${order.id}.`);
 
     for (const item of order.items) {
-      const product = this.productRepository.findById(item.product.id);
+      const product = this.#productRepository.findById(item.product.id);
 
       if (!product) {
         throw new Error(`Produto ${item.product.id} nao encontrado.`);
@@ -55,7 +61,7 @@ class OrderService {
     this.#pricing.calc(order);
 
     for (const item of order.items) {
-      this.productRepository.updateStock(item.product.id, item.quantity);
+      this.#productRepository.updateStock(item.product.id, item.quantity);
     }
 
     order.setStatusFromPayment(this.#getPaymentStatus(order));
@@ -65,15 +71,9 @@ class OrderService {
       pricing: this.#pricing,
     });
 
-    this.orderRepository.save(orderSummary);
+    this.#orderRepository.save(orderSummary);
 
-    if (order.status === "confirmed") {
-      this.notificationService.sendOrderConfirmation(
-        order.customer,
-        order.id,
-        this.#pricing.total,
-      );
-    } else {
+    if (!this.#notificationService.notify(order.customer, orderSummary)) {
       this.#logger.warn(`Pedido ${order.id} aguardando pagamento.`);
     }
 
@@ -110,10 +110,6 @@ class OrderService {
 
   static get DEFAULT_HANDLERS() {
     return [new ConsolePrintOrder(), new JsonPrintOrder()];
-  }
-
-  static get DEFAULT_LOGGER() {
-    return new Logger();
   }
 }
 

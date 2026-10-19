@@ -1,5 +1,6 @@
 const Product = require("../domain/Product");
 
+/** @implements {import("../../global").IProductRepository} */
 class ProductRepository {
   constructor() {
     this.products = [
@@ -53,7 +54,7 @@ class ProductRepository {
     return product;
   }
 
-  list() {
+  findAll() {
     return this.products;
   }
 }

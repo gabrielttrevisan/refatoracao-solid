@@ -35,6 +35,10 @@ class Order {
     this.status =
       paymentStatus === "approved" ? "confirmed" : "waiting_payment";
   }
+
+  isConfirmed() {
+    return this.status === "confirmed";
+  }
 }
 
 module.exports = Order;

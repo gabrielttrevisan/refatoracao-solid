@@ -1,3 +1,4 @@
+/** @implements {import("../../global").IOrderRepository} */
 class OrderRepository {
   constructor() {
     this.orders = [];

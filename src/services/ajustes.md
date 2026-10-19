@@ -33,3 +33,6 @@
    que calculam valores adicionais ou descontos por categoria/tipo.
 
    Porquê? Separa em responsabilidades únicas e torna o cáculo dos valores extensível.
+
+4. Repositórios e Serviço de notificação separados e substituíveis
+   Checagem de status como confirmado movido para dentro da classe Order
