@@ -12,7 +12,7 @@
    Retem a lógica de transformação de OrderInput e OrderPricing para OrderSummary que
    antes ficava em OrderService (proteção de regra de negócio)
 
-   Order ◁─┬──── OrderSummary
+   Order ◄─┬──── OrderSummary
            └──── OrderInput
 
    Herança permite que campos e métodos comuns sejam compartilhados.
