@@ -59,12 +59,13 @@ class OrderService {
     }
 
     this.#pricing.calc(order);
+    const paymentStatus = this.#getPaymentStatus(order);
 
     for (const item of order.items) {
       this.#productRepository.updateStock(item.product.id, item.quantity);
     }
 
-    order.setStatusFromPayment(this.#getPaymentStatus(order));
+    order.setStatusFromPayment(paymentStatus);
 
     const orderSummary = new OrderSummary({
       order,

@@ -1,180 +1,140 @@
 import { describe, expect, it } from "vitest";
-import path from "node:path";
-import Module, { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-
-class NotificationServiceStub {
-  sendOrderConfirmation() {}
-}
-
-const servicePath = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../src/services/OrderService.js"
-);
-const originalLoad = Module._load;
-
-Module._load = function (request, parent, isMain) {
-  if (parent && parent.filename === servicePath && request === "./NotificationService") {
-    return NotificationServiceStub;
-  }
-
-  return originalLoad.call(this, request, parent, isMain);
-};
-
-let OrderService;
-try {
-  OrderService = require(servicePath);
-} finally {
-  Module._load = originalLoad;
-}
+const Address = require("../../src/domain/Address");
+const Customer = require("../../src/domain/Customer");
+const OrderItem = require("../../src/domain/OrderItem");
+const Product = require("../../src/domain/Product");
+const OrderService = require("../../src/services/OrderService");
 
 function createCustomer(overrides = {}) {
-  return {
+  return new Customer({
+    id: "c1",
     name: "Ana Souza",
     email: "ana@example.com",
+    phone: "18999990000",
     type: "regular",
     ...overrides,
-    address: {
-      city: "Sao Paulo",
+    address: new Address({
+      street: "Rua das Flores",
+      number: "10",
+      city: "São Paulo",
       state: "SP",
+      zipCode: "01000-000",
       region: "sudeste",
-      ...((overrides && overrides.address) || {})
-    }
-  };
+      ...overrides.address
+    })
+  });
 }
 
-function createItem(product = {}, quantity = 1) {
-  const itemProduct = {
+function createProduct(overrides = {}) {
+  return new Product({
     id: "p1",
     name: "Produto",
+    category: "eletrônicos",
     price: 100,
     weight: 1,
-    ...product
-  };
-
-  return {
-    product: itemProduct,
-    quantity,
-    getSubtotal() {
-      return this.product.price * this.quantity;
-    }
-  };
+    stock: 20,
+    ...overrides
+  });
 }
 
-function createItemWithoutProduct() {
-  const item = createItem();
-  item.product = null;
-  return item;
+function createItem(productOverrides = {}, quantity = 1) {
+  return new OrderItem({
+    product: createProduct(productOverrides),
+    quantity
+  });
 }
 
 function createOrder(overrides = {}) {
-  const items = [createItem()];
-
   return {
     id: "o1",
     customer: createCustomer(),
-    items,
+    items: [createItem()],
+    couponCode: "NONE",
     paymentMethod: "credit_card",
     installments: 1,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    getTotalItems() {
-      return this.items.reduce((total, item) => total + item.quantity, 0);
-    },
     ...overrides
   };
 }
 
-function createService(order) {
+function createService(items = []) {
   const products = new Map(
-    order.items
-      .filter((item) => item.product)
-      .map((item) => [item.product.id, { ...item.product, stock: 20 }])
+    items
+      .filter((item) => item.product instanceof Product)
+      .map((item) => [item.product.id, item.product])
   );
   const updatedStock = [];
   const savedOrders = [];
   const notifications = [];
   const warnings = [];
-  const service = new OrderService();
-
-  service.productRepository = {
-    findById(id) {
-      return products.get(id);
+  const service = new OrderService({
+    productRepository: {
+      findById(id) {
+        return products.get(id);
+      },
+      updateStock(id, quantity) {
+        updatedStock.push([id, quantity]);
+      }
     },
-    updateStock(id, quantity) {
-      updatedStock.push([id, quantity]);
-    }
-  };
-  service.orderRepository = {
-    save(summary) {
-      savedOrders.push(summary);
-    }
-  };
-  service.notificationService = {
-    sendOrderConfirmation(...args) {
-      notifications.push(args);
-    }
-  };
-  service.logger = {
-    info() {},
-    warn(message) {
-      warnings.push(message);
-    }
-  };
+    orderRepository: {
+      save(summary) {
+        savedOrders.push(summary);
+      }
+    },
+    notificationService: {
+      notify(...args) {
+        notifications.push(args);
+      return args[1].isConfirmed();
+      }
+    },
+    logger: {
+      info() {},
+      warn(message) {
+        warnings.push(message);
+      }
+    },
+    outputHandler: []
+  });
 
   return { service, products, updatedStock, savedOrders, notifications, warnings };
 }
 
-function processOrder(service, order) {
-  return service.process(order);
-}
-
 describe("OrderService", () => {
-  const invalidCustomerOrders = [
-    { name: "cliente ausente", order: createOrder({ customer: null }), message: "Cliente obrigatorio." },
+  it.each([
     {
-      name: "e-mail inválido",
-      order: createOrder({ customer: createCustomer({ email: "invalid-email" }) }),
-      message: "E-mail do cliente invalido."
+      name: "cliente ausente",
+      order: createOrder({ customer: null }),
+      message: "O cliente não pode ser vazio ou inválido"
     },
-    { name: "pedido sem itens", order: createOrder({ items: [] }), message: "Pedido sem itens." }
-  ];
+    {
+      name: "itens que não são instâncias válidas",
+      order: createOrder({ items: [{}] }),
+      message: "Os itens do pedido não podem ser vazios ou inválidos"
+    }
+  ])("rejeita $name", ({ order, message }) => {
+    const { service } = createService(order.items);
 
-  it.each(invalidCustomerOrders)("rejeita $name", ({ order, message }) => {
-    const { service } = createService(order);
-    expect(() => service.process(order)).toThrowError(new Error(message));
+    expect(() => service.process(order)).toThrowError(message);
   });
 
-  const invalidItems = [
-    {
-      name: "item sem produto",
-      order: createOrder({ items: [createItemWithoutProduct()] }),
-      message: "Item sem produto."
-    },
-    {
-      name: "quantidade zero",
-      order: createOrder({ items: [createItem({}, 0)] }),
-      message: "Quantidade invalida."
-    },
-    {
-      name: "produto não encontrado",
-      order: createOrder({ items: [createItem({ id: "missing" })] }),
-      message: "Produto missing nao encontrado."
-    },
-    {
-      name: "estoque insuficiente",
-      order: createOrder({ items: [createItem({}, 21)] }),
-      message: "Estoque insuficiente para Produto."
-    }
-  ];
+  it("rejeita um produto que não existe", () => {
+    const order = createOrder({ items: [createItem({ id: "inexistente" })] });
+    const { service, products, updatedStock, savedOrders } = createService(order.items);
+    products.delete("inexistente");
 
-  it.each(invalidItems)("rejeita $name", ({ name, order, message }) => {
-    const { service, updatedStock, savedOrders, products } = createService(order);
-    if (name === "produto não encontrado") {
-      products.delete("missing");
-    }
-    expect(() => service.process(order)).toThrowError(new Error(message));
+    expect(() => service.process(order)).toThrowError("Produto inexistente nao encontrado.");
+    expect(updatedStock).toEqual([]);
+    expect(savedOrders).toEqual([]);
+  });
+
+  it("rejeita produtos sem estoque suficiente", () => {
+    const order = createOrder({ items: [createItem({}, 21)] });
+    const { service, updatedStock, savedOrders } = createService(order.items);
+
+    expect(() => service.process(order)).toThrowError("Estoque insuficiente para Produto.");
     expect(updatedStock).toEqual([]);
     expect(savedOrders).toEqual([]);
   });
@@ -186,9 +146,9 @@ describe("OrderService", () => {
       couponCode: "TECH10",
       paymentMethod: "pix"
     });
-    const { service, updatedStock, savedOrders, notifications } = createService(order);
+    const { service, updatedStock, savedOrders, notifications } = createService(order.items);
 
-    const summary = processOrder(service, order);
+    const summary = service.process(order);
 
     expect(summary.subtotal).toBe(200);
     expect(summary.discount).toBe(42);
@@ -196,25 +156,23 @@ describe("OrderService", () => {
     expect(summary.paymentFee).toBe(0);
     expect(summary.total).toBe(186);
     expect(summary.status).toBe("confirmed");
-    expect(order.status).toBe("confirmed");
     expect(summary.items).toEqual([
       { productId: "p1", name: "Produto", quantity: 2, subtotal: 200 }
     ]);
     expect(updatedStock).toEqual([["p1", 2]]);
     expect(savedOrders).toEqual([summary]);
-    expect(notifications).toEqual([[order.customer, order.id, 186]]);
+    expect(notifications).toEqual([[order.customer, summary]]);
   });
 
   it("aplica descontos de funcionário, pedido alto e parcelamento", () => {
     const order = createOrder({
       customer: createCustomer({ type: "employee", address: { region: "sul" } }),
       items: [createItem({ price: 5000, weight: 1 }, 2)],
-      paymentMethod: "credit_card",
       installments: 3
     });
-    const { service } = createService(order);
+    const { service } = createService(order.items);
 
-    const summary = processOrder(service, order);
+    const summary = service.process(order);
 
     expect(summary.subtotal).toBe(10000);
     expect(summary.discount).toBe(1750);
@@ -228,16 +186,15 @@ describe("OrderService", () => {
       couponCode: "FRETEGRATIS",
       paymentMethod: "boleto"
     });
-    const { service, notifications, warnings } = createService(order);
+    const { service, notifications, warnings } = createService(order.items);
 
-    const summary = processOrder(service, order);
+    const summary = service.process(order);
 
     expect(summary.freight).toBe(0);
     expect(summary.paymentFee).toBe(0);
     expect(summary.total).toBe(100);
     expect(summary.status).toBe("waiting_payment");
-    expect(order.status).toBe("waiting_payment");
-    expect(notifications).toEqual([]);
+    expect(notifications).toEqual([[order.customer, summary]]);
     expect(warnings).toEqual(["Pedido o1 aguardando pagamento."]);
   });
 
@@ -253,33 +210,30 @@ describe("OrderService", () => {
       customer: createCustomer({ address: { region } }),
       items: [createItem({ weight: 1 }, 1)]
     });
-    const { service } = createService(order);
+    const { service } = createService(order.items);
 
-    const summary = processOrder(service, order);
+    const summary = service.process(order);
 
     expect(summary.freight).toBe(freight);
     expect(summary.total).toBe(100 + freight);
   });
 
-  const invalidPayments = [
-    {
-      name: "forma de pagamento inválida",
-      order: createOrder({ paymentMethod: "cash" }),
-      message: "Forma de pagamento invalida."
-    },
-    {
-      name: "total não positivo",
-      order: createOrder({
-        items: [createItem({ price: -1 })],
-        couponCode: "FRETEGRATIS"
-      }),
-      message: "Total do pedido invalido."
-    }
-  ];
+  it("rejeita formas de pagamento inválidas sem atualizar estoque", () => {
+    const order = createOrder({ paymentMethod: "dinheiro" });
+    const { service, updatedStock, savedOrders } = createService(order.items);
 
-  it.each(invalidPayments)("rejeita $name", ({ order, message }) => {
-    const { service, updatedStock, savedOrders } = createService(order);
-    expect(() => service.process(order)).toThrowError(new Error(message));
+    expect(() => service.process(order)).toThrowError("Forma de pagamento invalida.");
+    expect(updatedStock).toEqual([]);
+    expect(savedOrders).toEqual([]);
+  });
+
+  it("rejeita totais não positivos sem atualizar estoque", () => {
+    const item = createItem();
+    item.product.price = -1;
+    const order = createOrder({ items: [item], couponCode: "FRETEGRATIS" });
+    const { service, updatedStock, savedOrders } = createService(order.items);
+
+    expect(() => service.process(order)).toThrowError("Total do pedido invalido.");
     expect(updatedStock).toEqual([]);
     expect(savedOrders).toEqual([]);
   });

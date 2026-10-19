@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import path from "node:path";
-import Module, { createRequire } from "node:module";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
@@ -8,30 +8,8 @@ const mainPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../src/main.js"
 );
-const orderServicePath = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../src/services/OrderService.js"
-);
-const originalLoad = Module._load;
 
-class NotificationServiceStub {
-  sendOrderConfirmation() {}
-}
-
-Module._load = function (request, parent, isMain) {
-  if (parent && parent.filename === orderServicePath && request === "./NotificationService") {
-    return NotificationServiceStub;
-  }
-
-  return originalLoad.call(this, request, parent, isMain);
-};
-
-let main;
-try {
-  main = require(mainPath);
-} finally {
-  Module._load = originalLoad;
-}
+let main=require(mainPath);
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -72,5 +50,18 @@ describe("main", () => {
       status: "confirmed"
     });
     expect(result.createdAt).toBeInstanceOf(Date);
+    expect(consoleLog.mock.calls.map(([message]) => message)).toEqual([
+      "[INFO] Iniciando processamento do pedido o1001.",
+      "Resumo do pedido",
+      "Cliente: Ana Souza",
+      "Cidade: Presidente Prudente/SP",
+      "Itens: 3",
+      "Subtotal: R$ 6440.00",
+      "Desconto: R$ 1159.20",
+      "Frete: R$ 30.00",
+      "Taxas: R$ 161.00",
+      "Total: R$ 5471.80",
+      JSON.stringify(result, null, 2)
+    ]);
   });
 });

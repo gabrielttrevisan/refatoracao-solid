@@ -6,7 +6,7 @@ class HighTicketDiscountPricingItem extends OrderPricingItem {
   }
 
   calc(_order, subtotal) {
-    if (subtotal > 8000) return 250;
+    if (subtotal > 8000) return -250;
 
     return 0;
   }
