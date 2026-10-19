@@ -4,6 +4,7 @@
 
    isNotNumberField, isNotStringField> funções usadas em várias validações. DRY
    JsonPrintOrder, ConsolePrintOrder> logica de print separada
+   Serviço de notificação faltante criado
 
 2. Separar operações de print para pedidos.
    classe Order separada em Order, OrderInput e OrderSummary.
@@ -36,3 +37,6 @@
 
 4. Repositórios e Serviço de notificação separados e substituíveis
    Checagem de status como confirmado movido para dentro da classe Order
+
+5. Testes unitários adicionados
+   repositório: https://github.com/gabrielttrevisan/refatoracao-solid
