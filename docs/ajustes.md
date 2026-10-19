@@ -2,8 +2,8 @@
    Lógica de validação de campos passou a ficar dentro dos objetos de domínio.
    Única responsabilidade: cada objeto valida seus dados
 
-   isNotNumberField, isNotStringField> funções usadas em várias validações. DRY.  Melhora de testabilidade.
-   JsonPrintOrder, ConsolePrintOrder> logica de print separada. Composição.  Melhora de testabilidade.
+   isNotNumberField, isNotStringField> funções usadas em várias validações. DRY. Melhora de testabilidade.
+   JsonPrintOrder, ConsolePrintOrder> logica de print separada. Composição.  Melhora de testabilidade. Responsabilidade Única.
    Serviço de notificação faltante criado
 
 2. Separar operações de print para pedidos.
@@ -34,11 +34,11 @@
    que calculam valores adicionais ou descontos por categoria/tipo.
 
    Porquê? Separa em responsabilidades únicas e torna o cáculo dos valores extensível.
-   Composição. Melhora de testabilidade.
+   Composição. Melhora de testabilidade. Responsabilidade Única.
 
 4. Repositórios e Serviço de notificação separados e substituíveis
-   Checagem de status como confirmado movido para dentro da classe Order
-   Composição. Melhora de testabilidade
+   Checagem de status como confirmado movido para dentro da classe Order. 
+   Composição. Melhora de testabilidade.
 
 5. Testes unitários adicionados
    Repositório: https://github.com/gabrielttrevisan/refatoracao-solid
